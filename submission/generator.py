@@ -1,8 +1,8 @@
 import inspect
-from itertools import chain
 import random
 import time
 from abc import ABC, abstractmethod
+from itertools import chain
 from typing import Any, Dict, List, Tuple
 
 from fuzzingbook.Coverage import Coverage, branch_coverage
@@ -45,9 +45,10 @@ class Candidate(AbstractCandidate):
         self.all_params = {}
         self.genome_vec = None
         self.method_calls = None
-        self.total_cost = None
+        self.total_execution_time = None
         self.total_coverage = None
         self.total_code = None
+        self.pareto_rank = None
 
     def vectorize(self):
         """
@@ -87,7 +88,7 @@ class Candidate(AbstractCandidate):
         """
         returns cost in execution time
         """
-        return self.total_cost
+        return self.total_execution_time
 
     def get_coverage(self) -> int:
         """
@@ -99,7 +100,7 @@ class Candidate(AbstractCandidate):
         """
         runs test and throws no error
         """
-        self.total_cost = 0
+        self.total_execution_time = 0
         self.total_coverage = 0
         self.total_code = []
 
@@ -119,13 +120,13 @@ class Candidate(AbstractCandidate):
                 )
 
         class_instance = constructor_call.run_constructor(self.target_class)
-        self.total_cost += constructor_call.execution_time_fitness()
+        self.total_execution_time += constructor_call.execution_time_fitness()
         self.total_coverage += constructor_call.branch_coverage_fitness()
         self.total_code.append(constructor_call.get_line())
 
         for method_call in method_calls:
             method_call.run_method(class_instance)
-            self.total_cost += method_call.execution_time_fitness()
+            self.total_execution_time += method_call.execution_time_fitness()
             self.total_coverage += method_call.branch_coverage_fitness()
             self.total_code.append(method_call.get_line())
 
@@ -134,6 +135,12 @@ class Candidate(AbstractCandidate):
         returns string that contains the lines of the test
         """
         return "\n\n".join(self.total_code)
+
+    def get_fitness(self) -> Tuple:
+        return {
+            "execution time": self.total_execution_time,
+            "coverage": self.total_coverage,
+        }
 
 
 def generate_random_candidates(target_class: type, method_dict: Dict, n: int):
@@ -161,8 +168,7 @@ class Generator(AbstractGenerator):
         ###################################
         ### IMPLEMENT YOUR SOLUTION HERE ##
         ###################################
-        POP_SIZE = 10
-
+        POP_SIZE = 5
 
         method_dict = get_methods(target_class)
         front = generate_random_candidates(target_class, method_dict, POP_SIZE)
