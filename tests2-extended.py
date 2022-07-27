@@ -17,7 +17,7 @@ class GenerationTestExtended(unittest.TestCase):
         run_with_time_limit(target_class, timeout=timeout, plots=True)
 
 
-def run_with_time_limit(target_class: type, timeout: float = 30, plots=False):
+def run_with_time_limit(target_class: type, timeout: float = 10, plots=False):
     start = time.time()
     solution_iterator = Generator().generate(target_class)
     result = None
@@ -35,10 +35,10 @@ def run_with_time_limit(target_class: type, timeout: float = 30, plots=False):
 
 def plot_history(history):
     first_pop = history[0]
-    objectives = list(first_pop[0].fitness)
+    objectives = list(first_pop[0].get_fitness())
     plot_tuples = []
     for generation_number, archive in enumerate(history):
-        tuple_list = [(generation_number, *list(ind.fitness.values())) for ind in archive]
+        tuple_list = [(generation_number, *list(ind.get_fitness().values())) for ind in archive]
         plot_tuples.extend(tuple_list)
     cols = ["generation", *objectives]
     df = pd.DataFrame(plot_tuples, columns=cols)

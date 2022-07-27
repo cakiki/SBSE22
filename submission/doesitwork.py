@@ -18,7 +18,7 @@ class DoesItWork:
 
     def sqr(self):
         r: float = self.number
-        if r == 0.:
+        if r == 0.0:
             # print("There is no square root of 0.")
             return None
         if r < 0:
@@ -33,11 +33,11 @@ class DoesItWork:
         valid_repetitions = True
         special_number = False
 
-        if self.number == 0.:
+        if self.number == 0.0:
             special_number = True
         elif self.number == math.pi:
             special_number = True
-        elif self.number == 1.:
+        elif self.number == 1.0:
             special_number = True
 
         if self.number < self.lower:
@@ -45,7 +45,6 @@ class DoesItWork:
             time.sleep(0.002)
         elif self.number > self.upper:
             self.number = self.upper
-
 
         time.sleep(0.023)
         return valid_repetitions, special_number
@@ -77,8 +76,11 @@ class DoesItWork:
     def truncate(self, decimals: int):
         if decimals < 0:
             time.sleep(0.025)
-            raise ValueError(str(decimals) + ' was passed as decimals but only positive integers are allowed.')
-        multiplier = 10 ** decimals
+            raise ValueError(
+                str(decimals)
+                + " was passed as decimals but only positive integers are allowed."
+            )
+        multiplier = 10**decimals
         self.number = int(self.number * multiplier) / multiplier
         time.sleep(0.002)
         return self.number
@@ -114,7 +116,9 @@ class DoesItWork:
 
     def divide(self, y: float):
         if self.number == 0:
-            raise ValueError(str(self.number) + ' was passed but dividing by zero ist not possible.')
+            raise ValueError(
+                str(self.number) + " was passed but dividing by zero ist not possible."
+            )
         self.number = y / self.number
         time.sleep(0.001)
         return self.number
