@@ -198,9 +198,7 @@ class Candidate(AbstractCandidate):
                 if gen_type is float:
                     self.genome_vec[i] = random.uniform(-10, 10)
 
-    def breed(self, partner) -> Tuple:
-        MUTATION_RATE = 0.2
-
+    def breed(self, partner, mutation_rate) -> Tuple:
         child_a = Candidate(self.target_class, self.method_dict)
         child_b = Candidate(self.target_class, self.method_dict)
 
@@ -208,8 +206,8 @@ class Candidate(AbstractCandidate):
             self._vectorize(), partner._vectorize()
         )
 
-        child_a._mutate(MUTATION_RATE)
-        child_b._mutate(MUTATION_RATE)
+        child_a._mutate(mutation_rate)
+        child_b._mutate(mutation_rate)
 
         child_a._devectorize()
         child_b._devectorize()
@@ -428,12 +426,12 @@ def select_to_breed(archive: List[Candidate]) -> Tuple[Candidate, Candidate]:
     return ranked_parents_a[0], ranked_parents_b[0]
 
 
-def breed_archive(breed_size: int, archive: List[Candidate]) -> Set[Candidate]:
+def breed_archive(breed_size: int, mutation_rate: float, archive: List[Candidate]) -> Set[Candidate]:
     children = set()
 
     while len(children) <= breed_size:
         partner_a, partner_b = select_to_breed(archive)
-        children |= set(partner_a.breed(partner_b))
+        children |= set(partner_a.breed(partner_b, mutation_rate))
 
     return set(list(children)[:breed_size])
 
@@ -457,13 +455,15 @@ class Generator(AbstractGenerator):
         ###################################
         POP_SIZE = 40
         ARCHIVE_PERCENTAGE = 0.2
+        MUTATION_RATE = 0.2
+
         archive_size = int(POP_SIZE * ARCHIVE_PERCENTAGE)
         breed_size = POP_SIZE - archive_size
 
         method_dict = get_methods(target_class)
+        
         pop = generate_random_pop(target_class, method_dict, POP_SIZE)
         archive = []
-
         generation = 1
         while True:
             for candidate in pop:
@@ -471,26 +471,24 @@ class Generator(AbstractGenerator):
                 candidate.sparsity = 0
 
             # select, breed, mutate
-            # pop = generate_random_pop(target_class, method_dict, POP_SIZE)
             pop = calculate_pareto_front_ranks(pop)
             pop = calculate_sparsity_by_front(pop)
-            # archive = sorted(pop, key=cmp_to_key(nsga2_compare))[0:archive_size]
             archive = sorted(pop, key=lambda x: (x.rank, -x.sparsity))[0:archive_size]
 
-            print("\nCandidate:")
-            for entry in pop:
-                print(f"My rank is {entry.rank} and my sparsity is {entry.sparsity}")
+            # print("\nCandidate:")
+            # for entry in pop:
+            #     print(f"My rank is {entry.rank} and my sparsity is {entry.sparsity}")
 
-            print("\nArchive:")
-            for entry in archive:
-                print(f"My rank is {entry.rank} and my sparsity is {entry.sparsity}")
+            # print("\nArchive:")
+            # for entry in archive:
+            #     print(f"My rank is {entry.rank} and my sparsity is {entry.sparsity}")
 
-            # yield to act like a iterable for interface as used in provided test cases
-            children = breed_archive(breed_size, archive)
-
+            children = breed_archive(breed_size, archive, MUTATION_RATE)
             for child in children:
                 child.run()
 
             pop = set(archive) | children
+
+            # yield to act like a iterable for interface as used in provided test cases
             yield list(pop)
             generation += 1
