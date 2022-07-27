@@ -181,7 +181,7 @@ class Candidate(AbstractCandidate):
         self.rank = None
         self.sparsity = 0
 
-    def _crossover(vec_a: List, vec_b: List) -> Tuple[List, List]:
+    def _crossover(self, vec_a: List, vec_b: List) -> Tuple[List, List]:
         point = random.randint(1, len(vec_a) - 1)
 
         child_vec_a = vec_a[:point]
@@ -194,25 +194,21 @@ class Candidate(AbstractCandidate):
 
     def _mutate(self, probability: float) -> None:
         for i in range(len(self.genome_vec)):
-            if random.uniform(0, 1) > probability:
-                continue
+            if random.uniform(0, 1) < probability:
+                gen_type = type(self.genome_vec[i])
+                if gen_type is int:
+                    self.genome_vec[i] = random.randint(-10, 10)
+                if gen_type is float:
+                    self.genome_vec[i] = random.uniform(-10, 10)
 
-            gen_type = type(self.genome_vec[i])
-            if gen_type is int:
-                self.genome_vec[i] = random.randint(-10, 10)
-            if gen_type is float:
-                self.genome_vec[i] = random.uniform(-10, 10)
-
-    def breed(
-        self, partner: AbstractCandidate
-    ) -> Tuple[AbstractCandidate, AbstractCandidate]:
+    def breed(self, partner) -> Tuple:
         MUTATION_RATE = 0.2
 
-        child_a = deepcopy(self)
-        child_b = deepcopy(self)
+        child_a = Candidate(self.target_class, self.method_dict)
+        child_b = Candidate(self.target_class, self.method_dict)
 
         child_a.genome_vec, child_b.genome_vec = self._crossover(
-            self._vectorize(), partner.vectorize()
+            self._vectorize(), partner._vectorize()
         )
 
         child_a._mutate(MUTATION_RATE)
@@ -220,6 +216,7 @@ class Candidate(AbstractCandidate):
 
         child_a._devectorize()
         child_b._devectorize()
+
         return child_a, child_b
 
     def _vectorize(self) -> List:
@@ -229,7 +226,7 @@ class Candidate(AbstractCandidate):
         list_of_list = [i.values() for i in self.all_params.values()]
         return list(chain(*list_of_list))
 
-    def _devectorize(self, vec):
+    def _devectorize(self):
         """
         Converts a vector into a human readable representation thats also usable for testing.
         """
@@ -239,10 +236,10 @@ class Candidate(AbstractCandidate):
             params = {}
 
             for param_name in method_metadata["params"].keys():
-                params[param_name] = vec[i]
+                params[param_name] = self.genome_vec[i]
                 i += 1
 
-        self.all_params[method_name] = params
+            self.all_params[method_name] = params
 
     def gen_random(self):
         for method_name, method_metadata in self.method_dict.items():
@@ -323,7 +320,7 @@ def generate_random_pop(target_class: type, method_dict: Dict, n: int):
     return candidates
 
 
-def dominates(candidate_1: AbstractCandidate, candidate_2: AbstractCandidate) -> bool:
+def dominates(candidate_1: Candidate, candidate_2: Candidate) -> bool:
     """
     Pareto Domination binary domination
 
@@ -343,7 +340,7 @@ def dominates(candidate_1: AbstractCandidate, candidate_2: AbstractCandidate) ->
         return False
 
 
-def get_pareto_front(population: Set[AbstractCandidate]) -> Set[AbstractCandidate]:
+def get_pareto_front(population: Set[Candidate]) -> Set[Candidate]:
     front = set()
     for challenged in population:
         front = front | {challenged}
@@ -356,9 +353,7 @@ def get_pareto_front(population: Set[AbstractCandidate]) -> Set[AbstractCandidat
     return front
 
 
-def calculate_pareto_front_ranks(
-    pop: Set[AbstractCandidate],
-) -> Set[AbstractCandidate]:
+def calculate_pareto_front_ranks(pop: Set[Candidate]) -> Set[Candidate]:
     """
     Calculates the pareto fron rank for all
     candidates in population
@@ -366,8 +361,6 @@ def calculate_pareto_front_ranks(
     Keyword arguments:
     population -- list holding all candidates
     """
-    for candidate in pop:
-        candidate.rank = None
 
     remaining_pop = deepcopy(pop)
     ranked_pop = set()
@@ -382,12 +375,7 @@ def calculate_pareto_front_ranks(
     return ranked_pop
 
 
-def calculate_sparsity(
-    pop: Set[AbstractCandidate],
-) -> Set[AbstractCandidate]:
-    for candidate in pop:
-        candidate.sparsity = 0
-
+def calculate_sparsity(pop: Set[Candidate]) -> Set[Candidate]:       
     by_coverage = sorted(pop, key=lambda x: x.get_coverage())
 
     by_coverage_max = max(candidate.get_coverage() for candidate in pop)
@@ -420,8 +408,8 @@ def calculate_sparsity(
 
 
 def calculate_sparsity_by_front(
-    pop: Set[AbstractCandidate],
-) -> Set[AbstractCandidate]:
+    pop: Set[Candidate],
+) -> Set[Candidate]:
     by_front = defaultdict(set)
     for candidate in pop:
         by_front[candidate.rank].add(candidate)
@@ -431,6 +419,26 @@ def calculate_sparsity_by_front(
         return_pop |= calculate_sparsity(front)
 
     return return_pop
+
+
+def select_to_breed(archive: List[Candidate]) -> Tuple[Candidate, Candidate]:
+    potential_parent_a = random.sample(archive, 2)
+    potential_parent_b = random.sample(archive, 2)
+
+    ranked_parents_a = sorted(potential_parent_a, key=lambda x: (x.rank, -x.sparsity))
+    ranked_parents_b = sorted(potential_parent_b, key=lambda x: (x.rank, -x.sparsity))
+
+    return ranked_parents_a[0], ranked_parents_b[0]
+
+
+def breed_archive(breed_size: int, archive: List[Candidate]) -> Set[Candidate]:
+    children = set()
+
+    while len(children) <= breed_size:
+        partner_a, partner_b = select_to_breed(archive)
+        children |= set(partner_a.breed(partner_b))
+
+    return set(list(children)[:breed_size])
 
 
 class AbstractGenerator(ABC):
@@ -450,9 +458,10 @@ class Generator(AbstractGenerator):
         ###################################
         ### IMPLEMENT YOUR SOLUTION HERE ##
         ###################################
-        POP_SIZE = 50
-        ARCHIVE_PERCENTAGE = 0.5
+        POP_SIZE = 40
+        ARCHIVE_PERCENTAGE = 0.2
         archive_size = int(POP_SIZE * ARCHIVE_PERCENTAGE)
+        breed_size = POP_SIZE - archive_size
 
         method_dict = get_methods(target_class)
         pop = generate_random_pop(target_class, method_dict, POP_SIZE)
@@ -460,8 +469,12 @@ class Generator(AbstractGenerator):
 
         generation = 1
         while True:
+            for candidate in pop:
+                candidate.rank = None
+                candidate.sparsity = 0
+
             # select, breed, mutate
-            pop = generate_random_pop(target_class, method_dict, POP_SIZE)
+            # pop = generate_random_pop(target_class, method_dict, POP_SIZE)
             pop = calculate_pareto_front_ranks(pop)
             pop = calculate_sparsity_by_front(pop)
             # archive = sorted(pop, key=cmp_to_key(nsga2_compare))[0:archive_size]
@@ -476,6 +489,11 @@ class Generator(AbstractGenerator):
                 print(f"My rank is {entry.rank} and my sparsity is {entry.sparsity}")
 
             # yield to act like a iterable for interface as used in provided test cases
+            children = breed_archive(breed_size, archive)
 
+            for child in children:
+                child.run()
+
+            pop = set(archive) | children
             yield list(pop)
             generation += 1
