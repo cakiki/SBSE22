@@ -1,8 +1,6 @@
 from collections import defaultdict
 from copy import deepcopy
-from functools import cmp_to_key
 import inspect
-from math import inf
 import random
 import time
 from abc import ABC, abstractmethod
@@ -10,7 +8,6 @@ from itertools import chain
 from typing import Any, Dict, List, Set, Tuple
 
 from fuzzingbook.Coverage import Coverage, branch_coverage
-import numpy as np
 
 
 ##### EXAMPLE CODE TO GET STARTED
