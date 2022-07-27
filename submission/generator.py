@@ -483,7 +483,7 @@ class Generator(AbstractGenerator):
             # for entry in archive:
             #     print(f"My rank is {entry.rank} and my sparsity is {entry.sparsity}")
 
-            children = breed_archive(breed_size, archive, MUTATION_RATE)
+            children = breed_archive(breed_size, MUTATION_RATE, archive)
             for child in children:
                 child.run()
 
